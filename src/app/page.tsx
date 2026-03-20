@@ -74,6 +74,24 @@ export default function Home() {
     storageDeleteTx(id);
   }
 
+  function handleAdjustBalance(actualBalance: number) {
+    const diff = actualBalance - currentBalance;
+    if (diff === 0) return;
+    const tx: Transaction = {
+      id: Date.now().toString(),
+      amount: Math.abs(diff),
+      currency: "KRW",
+      amountKRW: diff < 0 ? Math.abs(diff) : -diff,
+      category: "기타",
+      description: diff > 0 ? "잔액 조정 (증가)" : "잔액 조정 (감소)",
+      date: new Date().toISOString().split("T")[0],
+      createdAt: new Date().toISOString(),
+    };
+    const updated = [...transactions, tx];
+    setTransactions(updated);
+    storageAddTx(tx);
+  }
+
   function handleClearAll() {
     clearAllData();
     setStartingBalance(0);
@@ -191,6 +209,7 @@ export default function Home() {
         startingBalance={startingBalance}
         transactionCount={transactions.length}
         onSetBalance={handleSetBalance}
+        onAdjustBalance={handleAdjustBalance}
         onClearAll={handleClearAll}
         ratesLastUpdated={exchangeRates?.fetchedAt ?? null}
         onRefreshRates={refreshRates}

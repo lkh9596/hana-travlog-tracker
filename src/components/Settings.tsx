@@ -10,6 +10,7 @@ interface SettingsProps {
   startingBalance: number;
   transactionCount: number;
   onSetBalance: (balance: number) => void;
+  onAdjustBalance: (actualBalance: number) => void;
   onClearAll: () => void;
   ratesLastUpdated: string | null;
   onRefreshRates: () => void;
@@ -18,9 +19,11 @@ interface SettingsProps {
 export default function Settings({
   isOpen,
   onClose,
+  currentBalance,
   startingBalance,
   transactionCount,
   onSetBalance,
+  onAdjustBalance,
   onClearAll,
   ratesLastUpdated,
   onRefreshRates,
@@ -28,6 +31,7 @@ export default function Settings({
   const [balanceInput, setBalanceInput] = useState(
     startingBalance > 0 ? String(startingBalance) : ""
   );
+  const [adjustInput, setAdjustInput] = useState("");
 
   if (!isOpen) return null;
 
@@ -86,6 +90,41 @@ export default function Settings({
             </p>
           )}
         </div>
+
+        {/* Adjust current balance */}
+        {startingBalance > 0 && (
+          <div className="mb-6">
+            <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+              잔액 조정 — 실제 잔액 입력 (KRW)
+            </label>
+            <p className="text-xs text-gray-400 mb-2">
+              현재 잔액: {formatKRW(currentBalance)}
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                inputMode="numeric"
+                value={adjustInput}
+                onChange={(e) => setAdjustInput(e.target.value)}
+                placeholder="실제 계좌 잔액"
+                className="flex-1 h-12 px-4 rounded-xl bg-gray-100 text-gray-900 text-lg font-semibold outline-none focus:ring-2 focus:ring-[#009B8D] transition"
+              />
+              <button
+                onClick={() => {
+                  const val = parseInt(adjustInput, 10);
+                  if (!isNaN(val) && val >= 0) {
+                    onAdjustBalance(val);
+                    setAdjustInput("");
+                    onClose();
+                  }
+                }}
+                className="h-12 px-5 rounded-xl bg-amber-500 text-white font-bold active:scale-[0.97] transition-transform"
+              >
+                조정
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Exchange rates */}
         <div className="mb-6 p-4 bg-gray-50 rounded-xl">
