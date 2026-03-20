@@ -38,8 +38,10 @@ export default function Settings({
   function handleSaveBalance() {
     const val = parseInt(balanceInput, 10);
     if (!isNaN(val) && val >= 0) {
-      onSetBalance(val);
-      onClose();
+      if (confirm(`시작 잔액을 ₩${val.toLocaleString()}으로 설정할까요?`)) {
+        onSetBalance(val);
+        onClose();
+      }
     }
   }
 
