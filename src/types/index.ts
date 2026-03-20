@@ -1,15 +1,19 @@
 export type Currency = "KRW" | "JPY" | "USD" | "HKD" | "EUR";
 
+export type TransactionType = "expense" | "deposit";
+
 export type Category =
   | "식비"
   | "교통"
   | "숙박"
   | "쇼핑"
   | "관광"
-  | "기타";
+  | "기타"
+  | "입금";
 
 export interface Transaction {
   id: string;
+  type: TransactionType;
   amount: number;
   currency: Currency;
   amountKRW: number;
@@ -38,11 +42,15 @@ export const CURRENCIES: { code: Currency; symbol: string; name: string }[] = [
   { code: "EUR", symbol: "€", name: "유로 (EUR)" },
 ];
 
-export const CATEGORIES: { name: Category; icon: string }[] = [
+export const EXPENSE_CATEGORIES: { name: Category; icon: string }[] = [
   { name: "식비", icon: "🍽" },
   { name: "교통", icon: "🚇" },
   { name: "숙박", icon: "🏨" },
   { name: "쇼핑", icon: "🛍" },
   { name: "관광", icon: "🎫" },
   { name: "기타", icon: "📌" },
+];
+
+export const DEPOSIT_CATEGORIES: { name: Category; icon: string }[] = [
+  { name: "입금", icon: "💰" },
 ];

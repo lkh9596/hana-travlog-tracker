@@ -1,6 +1,6 @@
 "use client";
 
-import { Transaction, CATEGORIES } from "@/types";
+import { Transaction, EXPENSE_CATEGORIES, DEPOSIT_CATEGORIES } from "@/types";
 import { formatKRW, formatCurrency, formatDate } from "@/utils/format";
 
 interface TransactionListProps {
@@ -8,6 +8,8 @@ interface TransactionListProps {
   startingBalance: number;
   onDelete: (id: string) => void;
 }
+
+const allCategories = [...EXPENSE_CATEGORIES, ...DEPOSIT_CATEGORIES];
 
 export default function TransactionList({
   transactions,
@@ -20,14 +22,17 @@ export default function TransactionList({
   );
 
   // Compute running balance for each transaction.
-  // We need chronological order for running balance calculation, then display in reverse.
   const chronological = [...transactions].sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   );
   const balanceMap = new Map<string, number>();
   let running = startingBalance;
   for (const tx of chronological) {
-    running -= tx.amountKRW;
+    if (tx.type === "deposit") {
+      running += tx.amountKRW;
+    } else {
+      running -= tx.amountKRW;
+    }
     balanceMap.set(tx.id, running);
   }
 
@@ -66,7 +71,7 @@ export default function TransactionList({
   }
 
   function getCategoryIcon(categoryName: string) {
-    const cat = CATEGORIES.find((c) => c.name === categoryName);
+    const cat = allCategories.find((c) => c.name === categoryName);
     return cat?.icon ?? "📌";
   }
 
@@ -84,43 +89,50 @@ export default function TransactionList({
             {group.dateLabel}
           </p>
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-50">
-            {group.items.map((tx) => (
-              <div
-                key={tx.id}
-                className="flex items-center px-4 py-3.5 active:bg-gray-50 transition-colors"
-                onClick={() => handleDelete(tx.id)}
-              >
-                {/* Icon */}
-                <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-lg shrink-0">
-                  {getCategoryIcon(tx.category)}
-                </div>
+            {group.items.map((tx) => {
+              const isDeposit = tx.type === "deposit";
+              return (
+                <div
+                  key={tx.id}
+                  className="flex items-center px-4 py-3.5 active:bg-gray-50 transition-colors"
+                  onClick={() => handleDelete(tx.id)}
+                >
+                  {/* Icon */}
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0 ${
+                    isDeposit ? "bg-blue-50" : "bg-gray-100"
+                  }`}>
+                    {getCategoryIcon(tx.category)}
+                  </div>
 
-                {/* Info */}
-                <div className="ml-3 flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">
-                    {tx.description}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    {tx.category}
-                    {tx.currency !== "KRW" && (
-                      <span className="ml-1.5">
-                        {formatCurrency(tx.amount, tx.currency)}
-                      </span>
-                    )}
-                  </p>
-                </div>
+                  {/* Info */}
+                  <div className="ml-3 flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 truncate">
+                      {tx.description}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {tx.category}
+                      {tx.currency !== "KRW" && (
+                        <span className="ml-1.5">
+                          {formatCurrency(tx.amount, tx.currency)}
+                        </span>
+                      )}
+                    </p>
+                  </div>
 
-                {/* Amount */}
-                <div className="text-right shrink-0 ml-2">
-                  <p className="text-sm font-bold text-gray-900">
-                    -{formatKRW(tx.amountKRW)}
-                  </p>
-                  <p className="text-[11px] text-gray-400 mt-0.5">
-                    잔액 {formatKRW(balanceMap.get(tx.id) ?? 0)}
-                  </p>
+                  {/* Amount */}
+                  <div className="text-right shrink-0 ml-2">
+                    <p className={`text-sm font-bold ${
+                      isDeposit ? "text-blue-500" : "text-gray-900"
+                    }`}>
+                      {isDeposit ? "+" : "-"}{formatKRW(tx.amountKRW)}
+                    </p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">
+                      잔액 {formatKRW(balanceMap.get(tx.id) ?? 0)}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ))}

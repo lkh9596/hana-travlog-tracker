@@ -33,6 +33,7 @@ export function saveBalance(balance: number): void {
   const data = loadData();
   data.startingBalance = balance;
   saveData(data);
+  syncBalanceToSheets(balance);
 }
 
 export function addTransaction(tx: Transaction): void {
@@ -87,6 +88,19 @@ async function syncDeleteFromSheets(id: string): Promise<void> {
     });
   } catch {
     console.warn("Failed to sync deletion to Google Sheets");
+  }
+}
+
+async function syncBalanceToSheets(balance: number): Promise<void> {
+  try {
+    await fetch(SHEETS_API, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain" },
+      body: JSON.stringify({ action: "setBalance", balance }),
+    });
+  } catch {
+    console.warn("Failed to sync balance to Google Sheets");
   }
 }
 

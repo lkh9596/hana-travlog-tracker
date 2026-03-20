@@ -53,8 +53,13 @@ export default function Home() {
   }, [refreshRates]);
 
   // Computed
-  const totalSpent = transactions.reduce((sum, tx) => sum + tx.amountKRW, 0);
-  const currentBalance = startingBalance - totalSpent;
+  const totalSpent = transactions
+    .filter((tx) => tx.type === "expense")
+    .reduce((sum, tx) => sum + tx.amountKRW, 0);
+  const totalDeposits = transactions
+    .filter((tx) => tx.type === "deposit")
+    .reduce((sum, tx) => sum + tx.amountKRW, 0);
+  const currentBalance = startingBalance - totalSpent + totalDeposits;
 
   // Handlers
   function handleSetBalance(balance: number) {
@@ -79,10 +84,11 @@ export default function Home() {
     if (diff === 0) return;
     const tx: Transaction = {
       id: Date.now().toString(),
+      type: diff > 0 ? "deposit" : "expense",
       amount: Math.abs(diff),
       currency: "KRW",
-      amountKRW: diff < 0 ? Math.abs(diff) : -diff,
-      category: "기타",
+      amountKRW: Math.abs(diff),
+      category: diff > 0 ? "입금" : "기타",
       description: diff > 0 ? "잔액 조정 (증가)" : "잔액 조정 (감소)",
       date: new Date().toISOString().split("T")[0],
       createdAt: new Date().toISOString(),

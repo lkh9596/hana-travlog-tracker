@@ -5,8 +5,10 @@ import {
   Currency,
   Category,
   Transaction,
+  TransactionType,
   CURRENCIES,
-  CATEGORIES,
+  EXPENSE_CATEGORIES,
+  DEPOSIT_CATEGORIES,
   ExchangeRates,
 } from "@/types";
 import { convertToKRW } from "@/utils/currency";
@@ -25,6 +27,7 @@ export default function TransactionForm({
   onSubmit,
   exchangeRates,
 }: TransactionFormProps) {
+  const [txType, setTxType] = useState<TransactionType>("expense");
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState<Currency>("JPY");
   const [category, setCategory] = useState<Category>("식비");
@@ -33,11 +36,22 @@ export default function TransactionForm({
 
   if (!isOpen) return null;
 
+  const categories = txType === "expense" ? EXPENSE_CATEGORIES : DEPOSIT_CATEGORIES;
   const numericAmount = parseFloat(amount) || 0;
   const estimatedKRW =
     exchangeRates && numericAmount > 0
       ? convertToKRW(numericAmount, currency, exchangeRates)
       : 0;
+
+  function handleTypeChange(type: TransactionType) {
+    setTxType(type);
+    if (type === "deposit") {
+      setCategory("입금");
+      setCurrency("KRW");
+    } else {
+      setCategory("식비");
+    }
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -52,6 +66,7 @@ export default function TransactionForm({
 
     const tx: Transaction = {
       id: crypto.randomUUID(),
+      type: txType,
       amount: numericAmount,
       currency,
       amountKRW: Math.round(amountKRW),
@@ -64,6 +79,7 @@ export default function TransactionForm({
     onSubmit(tx);
     setAmount("");
     setDescription("");
+    setTxType("expense");
     setCurrency("JPY");
     setCategory("식비");
     setDate(toInputDateValue(new Date().toISOString()));
@@ -72,16 +88,39 @@ export default function TransactionForm({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
-      {/* backdrop */}
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      {/* sheet */}
       <div className="relative w-full max-w-lg bg-white rounded-t-2xl p-5 pb-8 animate-slide-up max-h-[90vh] overflow-y-auto">
         <div className="w-10 h-1 bg-gray-300 rounded-full mx-auto mb-5" />
-        <h2 className="text-lg font-bold text-gray-900 mb-5">지출 추가</h2>
+
+        {/* Type toggle */}
+        <div className="flex gap-2 mb-5">
+          <button
+            type="button"
+            onClick={() => handleTypeChange("expense")}
+            className={`flex-1 h-11 rounded-xl font-bold text-sm transition-all ${
+              txType === "expense"
+                ? "bg-[#009B8D] text-white shadow-md"
+                : "bg-gray-100 text-gray-500"
+            }`}
+          >
+            지출
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTypeChange("deposit")}
+            className={`flex-1 h-11 rounded-xl font-bold text-sm transition-all ${
+              txType === "deposit"
+                ? "bg-blue-500 text-white shadow-md"
+                : "bg-gray-100 text-gray-500"
+            }`}
+          >
+            입금
+          </button>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Amount + Currency */}
@@ -119,28 +158,30 @@ export default function TransactionForm({
             )}
           </div>
 
-          {/* Category */}
-          <div>
-            <label className="block text-xs font-semibold text-gray-500 mb-1.5">
-              카테고리
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {CATEGORIES.map((cat) => (
-                <button
-                  type="button"
-                  key={cat.name}
-                  onClick={() => setCategory(cat.name)}
-                  className={`h-11 rounded-xl text-sm font-semibold transition-all ${
-                    category === cat.name
-                      ? "bg-[#009B8D] text-white shadow-md"
-                      : "bg-gray-100 text-gray-700 active:bg-gray-200"
-                  }`}
-                >
-                  {cat.icon} {cat.name}
-                </button>
-              ))}
+          {/* Category (only for expenses) */}
+          {txType === "expense" && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+                카테고리
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {categories.map((cat) => (
+                  <button
+                    type="button"
+                    key={cat.name}
+                    onClick={() => setCategory(cat.name)}
+                    className={`h-11 rounded-xl text-sm font-semibold transition-all ${
+                      category === cat.name
+                        ? "bg-[#009B8D] text-white shadow-md"
+                        : "bg-gray-100 text-gray-700 active:bg-gray-200"
+                    }`}
+                  >
+                    {cat.icon} {cat.name}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Description */}
           <div>
@@ -151,7 +192,7 @@ export default function TransactionForm({
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="예: 라멘, 택시, 호텔..."
+              placeholder={txType === "expense" ? "예: 라멘, 택시, 호텔..." : "예: 엄마 입금, 환불..."}
               className="w-full h-12 px-4 rounded-xl bg-gray-100 text-gray-900 outline-none focus:ring-2 focus:ring-[#009B8D] transition"
             />
           </div>
@@ -173,9 +214,11 @@ export default function TransactionForm({
           <button
             type="submit"
             disabled={numericAmount <= 0}
-            className="w-full h-13 rounded-xl bg-[#009B8D] text-white font-bold text-base shadow-lg active:scale-[0.98] transition-transform disabled:opacity-40 disabled:active:scale-100 mt-2"
+            className={`w-full h-13 rounded-xl text-white font-bold text-base shadow-lg active:scale-[0.98] transition-transform disabled:opacity-40 disabled:active:scale-100 mt-2 ${
+              txType === "expense" ? "bg-[#009B8D]" : "bg-blue-500"
+            }`}
           >
-            추가하기
+            {txType === "expense" ? "지출 추가" : "입금 추가"}
           </button>
         </form>
       </div>
