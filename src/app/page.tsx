@@ -1,65 +1,200 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { Transaction, ExchangeRates } from "@/types";
+import { fetchExchangeRates } from "@/utils/currency";
+import {
+  loadData,
+  saveBalance,
+  addTransaction as storageAddTx,
+  deleteTransaction as storageDeleteTx,
+  saveExchangeRates,
+  clearAllData,
+} from "@/utils/storage";
+import Header from "@/components/Header";
+import TransactionForm from "@/components/TransactionForm";
+import TransactionList from "@/components/TransactionList";
+import Settings from "@/components/Settings";
 
 export default function Home() {
+  const [startingBalance, setStartingBalance] = useState(0);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [exchangeRates, setExchangeRates] = useState<ExchangeRates | null>(
+    null
+  );
+  const [showForm, setShowForm] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Load data from localStorage on mount
+  useEffect(() => {
+    const data = loadData();
+    setStartingBalance(data.startingBalance);
+    setTransactions(data.transactions);
+    if (data.exchangeRates) {
+      setExchangeRates(data.exchangeRates);
+    }
+    setMounted(true);
+  }, []);
+
+  // Fetch exchange rates on mount
+  const refreshRates = useCallback(async () => {
+    try {
+      const rates = await fetchExchangeRates();
+      setExchangeRates(rates);
+      saveExchangeRates(rates);
+    } catch (err) {
+      console.error("Failed to fetch exchange rates:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshRates();
+  }, [refreshRates]);
+
+  // Computed
+  const totalSpent = transactions.reduce((sum, tx) => sum + tx.amountKRW, 0);
+  const currentBalance = startingBalance - totalSpent;
+
+  // Handlers
+  function handleSetBalance(balance: number) {
+    setStartingBalance(balance);
+    saveBalance(balance);
+  }
+
+  function handleAddTransaction(tx: Transaction) {
+    const updated = [...transactions, tx];
+    setTransactions(updated);
+    storageAddTx(tx);
+  }
+
+  function handleDeleteTransaction(id: string) {
+    const updated = transactions.filter((t) => t.id !== id);
+    setTransactions(updated);
+    storageDeleteTx(id);
+  }
+
+  function handleClearAll() {
+    clearAllData();
+    setStartingBalance(0);
+    setTransactions([]);
+    setExchangeRates(null);
+  }
+
+  // Show initial balance setup if no balance is set
+  const needsSetup =
+    mounted && startingBalance === 0 && transactions.length === 0;
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-[#009B8D] flex items-center justify-center">
+        <div className="text-white text-center">
+          <p className="text-2xl font-bold">하나 트래블로그 카드 기록</p>
+          <p className="text-white/60 text-sm mt-2">로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <main className="min-h-screen bg-gray-50 max-w-lg mx-auto relative">
+      <Header
+        currentBalance={currentBalance}
+        startingBalance={startingBalance}
+        onOpenSettings={() => setShowSettings(true)}
+      />
+
+      {/* Initial setup prompt */}
+      {needsSetup && (
+        <div className="px-5 mt-8">
+          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center">
+            <div className="w-16 h-16 bg-[#009B8D]/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <svg
+                width="28"
+                height="28"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="#009B8D"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="2" y="4" width="20" height="16" rx="3" />
+                <path d="M2 10h20" />
+              </svg>
+            </div>
+            <h2 className="text-lg font-bold text-gray-900 mb-1">
+              시작 잔액을 설정하세요
+            </h2>
+            <p className="text-sm text-gray-400 mb-5">
+              하나은행 계좌의 현재 잔액을 입력해주세요
+            </p>
+            <button
+              onClick={() => setShowSettings(true)}
+              className="w-full h-12 rounded-xl bg-[#009B8D] text-white font-bold active:scale-[0.98] transition-transform"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+              잔액 설정하기
+            </button>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      )}
+
+      {/* Transaction List */}
+      {!needsSetup && (
+        <div className="mt-5">
+          <div className="flex items-center justify-between px-5 mb-3">
+            <h2 className="text-sm font-bold text-gray-900">거래 내역</h2>
+            <p className="text-xs text-gray-400">{transactions.length}건</p>
+          </div>
+          <TransactionList
+            transactions={transactions}
+            startingBalance={startingBalance}
+            onDelete={handleDeleteTransaction}
+          />
         </div>
-      </main>
-    </div>
+      )}
+
+      {/* FAB - Floating Action Button */}
+      {!needsSetup && (
+        <button
+          onClick={() => setShowForm(true)}
+          className="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-[#009B8D] text-white shadow-xl flex items-center justify-center active:scale-90 transition-transform z-40"
+          aria-label="지출 추가"
+        >
+          <svg
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </button>
+      )}
+
+      {/* Modals */}
+      <TransactionForm
+        isOpen={showForm}
+        onClose={() => setShowForm(false)}
+        onSubmit={handleAddTransaction}
+        exchangeRates={exchangeRates}
+      />
+
+      <Settings
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        currentBalance={currentBalance}
+        startingBalance={startingBalance}
+        transactionCount={transactions.length}
+        onSetBalance={handleSetBalance}
+        onClearAll={handleClearAll}
+        ratesLastUpdated={exchangeRates?.fetchedAt ?? null}
+        onRefreshRates={refreshRates}
+      />
+    </main>
   );
 }
